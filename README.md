@@ -10,7 +10,7 @@ It automates evidence collection, IOC correlation, execution forensics, and time
 
 The toolkit consists of two scripts:
 
-### Phase 1 — Evidence Collection (mac_extract_phase1v2.sh)
+### Phase 1 — Evidence Collection (mac_extract_phase1.sh)
 
 Collects forensic artifacts from a live macOS host, including:
 
@@ -50,7 +50,7 @@ Phase 1 supports two modes:
 
 ### Option A — Full Collection (Recommended)
 Requires sudo and Terminal with Full Disk Access.
-* sudo ./mac_extract_phase1v2.sh 7d
+* sudo ./mac_extract_phase1.sh 7d
 
 
 This collects:
@@ -66,7 +66,7 @@ You will see output like:
 
 ### Option B — Limited Collection (No sudo)
 If sudo isn't available or you just want to test:
-* ./mac_extract_phase1v2.sh --no-sudo 7d
+* ./mac_extract_phase1.sh --no-sudo 7d
 
 
 This mode skips:
@@ -168,7 +168,7 @@ Checks:
 
 **1. Collect evidence
 **
-* sudo ./mac_extract_phase1v2.sh 7d
+* sudo ./mac_extract_phase1.sh 7d
 
 _**Suppose Phase 1 prints:**_
 * Folder : /tmp/mac_extract_20251205_210718
