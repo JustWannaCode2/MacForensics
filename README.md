@@ -1,121 +1,133 @@
-# macOS Phishing Forensics Toolkit
+macOS Phishing Forensics Toolkit
+
 Automated Evidence Collection + IOC Analysis for macOS Incident Response
 
-This project provides a two-phase macOS investigation toolkit built for IR analysts, SOC teams, and threat hunters who need to quickly triage phishing incidents on macOS endpoints.
+This toolkit provides a two-phase macOS investigation workflow designed for IR analysts, SOC teams, DFIR students, and threat hunters who need rapid, repeatable host-based forensics during phishing investigations.
 
-It automates:
-
-Browser history extraction
-
-Download activity & metadata collection
-
-Quarantine event extraction
-
-Unified Logs acquisition (DNS, TLS, exec events, etc.)
-
-Persistence discovery
-
-IOC searching & correlation
-
-Timeline/report generation
-
-The result is a repeatable, host-based forensic workflow you can run manually or deploy via EDR tools (CrowdStrike RTR, Velociraptor, etc.).
-
-
+It automates evidence collection, IOC correlation, execution forensics, and timeline generation across Safari, Chrome, Firefox, QuarantineEvents, Unified Logs, persistence artifacts, and system metadata.
 
 Overview
 
-The toolkit consists of:
+The toolkit consists of two scripts:
 
-Phase 1 — Evidence Collection (mac_extract_phase1.sh)
+Phase 1 — Evidence Collection (mac_extract_phase1v2.sh)
 
-Creates a complete evidence package from a live macOS host, including:
+Collects forensic artifacts from a live macOS host, including:
 
 Browser history (Chrome, Safari, Firefox)
 
-Download metadata (~/Downloads)
+Download metadata + SHA-256 hashes
 
-QuarantineEventsV2 (download origin, app used, timestamps)
+QuarantineEventsV2 (download origin & attribution)
 
-Unified Logs (log show) for a specified time window
+Unified Logs (DNS, TLS, process execution, Gatekeeper) — sudo only
 
-DNS lookups
+DNS resolver configuration
 
-TLS handshakes
+Persistence artifacts (LaunchAgents, LaunchDaemons)
 
-Process events (via Phase 2)
+File metadata (xattrs, Spotlight data)
 
-Cookies, cache, preferences (browser artifacts)
+Host metadata (OS, user, hostname)
 
-Persistence artifacts (LaunchAgents, LaunchDaemons, StartupItems)
-
-Network configuration (DNS servers, hardware ports)
-
-Host metadata (OS version, hostname, user)
-
-Output is saved to:
+Evidence is saved to:
 
 /tmp/mac_extract_<timestamp>/
 
 
-The script also generates a manifest.json documenting all artifacts, complete with SHA-256 hashes.
+A manifest.json with SHA-256 hashes is also generated.
 
 Phase 2 — IOC Search & Correlation (mac_extract_phase2.sh)
 
-Accepts a Phase 1 folder (or the newest one in /tmp) + your IOC string (domain, filename, hash, keyword), and performs:
+Searches all Phase 1 artifacts for your IOC (domain, filename, keyword, etc.) and produces:
 
-Full recursive IOC search across all Phase 1 artifacts
+Per-artifact IOC hit files
 
-Browser history correlation (URLs + download tables)
+A unified forensic timeline
 
-Download metadata correlation
+An IOC summary
 
-QUARANTINE correlation (file origin, timestamp, app used)
+A human-readable Markdown report
 
-Unified Logs searches
+Phase 2 creates:
 
-DNS lookups
+/tmp/mac_extract_<timestamp>/phase2_results_<timestamp>/
 
-TLS trustd validations
+Running Phase 1
 
-General process messages
+Phase 1 supports two modes:
+
+Option A — Full Collection (Recommended)
+
+Requires sudo and Terminal with Full Disk Access.
+
+sudo ./mac_extract_phase1v2.sh 7d
 
 
+This collects:
 
-Phase 2 now extracts process execution events tied to your IOC using Unified Logs:
+Unified Logs (log collect)
 
-exec() calls logged by the kernel
+System-level Quarantine DB
 
-trustd code signing checks (Gatekeeper validations)
+Protected browser data
 
-launchservicesd UI-launch events
+More complete persistence artifacts
 
-Any process whose name matches/contains the IOC
+You will see output like:
 
-Any unified log event mentioning the downloaded file
+Folder : /tmp/mac_extract_20251205_210718
 
-This detects scenarios like:
+Option B — Limited Collection (No sudo)
 
-A malicious PDF that was opened
+If sudo isn't available or you just want to test:
 
-A payload inside a ZIP that was executed
+./mac_extract_phase1v2.sh --no-sudo 7d
 
-An unsigned binary that triggered Gatekeeper
 
-All execution findings are appended to the master timeline.
+This mode skips:
 
-📊 Phase 2 Outputs
+Unified Logs
 
-Inside the Phase 1 folder, Phase 2 generates a results directory:
+System-level Quarantine DB
+
+system LaunchAgents / LaunchDaemons
+
+Everything else is still collected.
+
+You will see:
+
+[*] NOTE: Running in NO-SUDO mode.
+[*] Unified logs archive skipped (no-sudo mode).
+
+Running Phase 2
+
+Phase 2 needs:
+
+A Phase 1 output folder
+
+An IOC string
+
+You can run Phase 2 two ways:
+
+Option A — Specify Phase 1 folder explicitly
+/bin/bash ./mac_extract_phase2.sh /tmp/mac_extract_20251205_122702 "chatgpt.com"
+
+Option B — Auto-detect latest Phase 1 folder in /tmp
+/bin/bash ./mac_extract_phase2.sh "chatgpt.com"
+
+Phase 2 Outputs
+
+Inside:
 
 /tmp/mac_extract_<timestamp>/phase2_results_<timestamp>/
 
 
-Contents include:
+you will find:
 
-✔ hits/
+hits/
 
-Raw grep hits for your IOC:
+IOC matches from individual sources:
 
 chrome_urls_hits.txt
 
@@ -123,103 +135,138 @@ chrome_downloads_hits.txt
 
 quarantine_hits.txt
 
+downloads_metadata_hits.txt
+
+safari_hits.txt
+
+firefox_hits.txt
+
 unified_dns.txt
 
 unified_tls.txt
 
 unified_general.txt
 
-unified_exec.txt ← NEW
+unified_exec.txt
 
-downloads_metadata_hits.txt
+timeline.tsv
 
-firefox_hits.txt
+Chronologically sorted forensic timeline containing:
 
-safari_hits.txt
+Browser visits
 
-✔ timeline.tsv
-
-A sorted forensic timeline combining:
-
-Browser history
-
-Download activity
+Downloads
 
 Quarantine events
 
-DNS/TLS unified logs
+File metadata
 
-Process execution events
+DNS/TLS events (sudo mode only)
 
-File metadata events
+Execution events (sudo mode only)
 
-✔ summary.txt
+summary.txt
 
-Count of IOC hits by category.
+IOC hit counts by category.
 
-✔ report.md
+report.md
 
-Human-readable report — suitable for tickets, IR writeups, etc.
+Markdown report suitable for IR documentation or ticketing systems.
 
-Running the Toolkit
-Run Phase 1 (Evidence Collection)
-chmod +x mac_extract_phase1.sh
-sudo ./mac_extract_phase1.sh 7d
+What You Can Detect
+Did the user visit a malicious URL?
 
+From:
 
-The 7d argument controls how far back Unified Logs are collected.
-You can use:
+Chrome/Safari/Firefox URL tables
 
-24h
+Unified Logs DNS lookups
 
-48h
+Unified Logs TLS connections
 
-30d
+Did they download a malicious file?
 
-1h
+From:
 
-Example output:
+Chrome Downloads table
 
-Folder : /tmp/mac_extract_20251120_210718
-Tarball: /tmp/mac_extract_20251120_210718.tgz
+Safari Downloads plist
 
+File metadata + hashes
 
+QuarantineEventsV2
 
+Did they open or execute the file?
 
-Run Phase 2 (IOC Search & Correlation)
-Option A: Specify Phase 1 folder explicitly
-sudo /bin/bash ./mac_extract_phase2.sh /tmp/mac_extract_20251120_210718 "chatgpt.com"
+Execution module correlates:
 
-Option B: Auto-detect latest Phase 1 folder
-sudo /bin/bash ./mac_extract_phase2.sh "chatgpt.com"
+Kernel exec() events
 
-What You Can Detect With This Toolkit
-✔ Did the user visit a malicious URL?
+Gatekeeper trustd signature checks
 
-Chrome / Safari / Firefox history, Unified Logs DNS/TLS
+UI app launches (launchservicesd)
 
-✔ Did they download a malicious file?
+Process names containing the IOC
 
-Chrome Downloads.csv, Safari downloads, Quarantine DB, file metadata
+Did persistence get created?
 
-✔ Did they open/run the file?
+Checks:
 
-NEW execution module detects:
+User LaunchAgents
 
-kernel exec events
+System LaunchAgents (sudo)
 
-trustd signer checks
+LaunchDaemons (sudo)
 
-launchservices app launches
+StartupItems
 
-Gatekeeper validations
+Example Workflow
+# 1. Collect evidence
+sudo ./mac_extract_phase1v2.sh 7d
 
-executable names containing the IOC
+# Suppose Phase 1 prints:
+# Folder : /tmp/mac_extract_20251205_210718
 
-✔ Was persistence created?
+# 2. Run IOC correlation
+/bin/bash ./mac_extract_phase2.sh /tmp/mac_extract_20251205_210718 "invoice.pdf"
 
-LaunchAgents, Daemons, StartupItems scanned
+# 3. View results
+open /tmp/mac_extract_20251205_210718/phase2_results_20251205_213000
 
-✔ What happened when?
+Permissions Required
+For Full Functionality (Recommended):
 
-Master timeline aligns browser activity, downloads, execution, DNS lookups, and system events in chronological order.
+Terminal must be granted Full Disk Access
+
+Script must be run with sudo
+
+Without sudo:
+
+Unified Logs are skipped
+
+Some Safari and system artifacts may be incomplete
+
+Execution forensics cannot run
+
+The script will warn you when:
+
+sudo is missing
+
+Full Disk Access appears to be missing
+
+It must fall back into no-sudo mode
+
+Notes for EDR / DFIR Deployment
+
+This toolkit can be executed via:
+
+CrowdStrike RTR
+
+Velociraptor
+
+SSH
+
+Local Terminal
+
+Phase 1 requires local shell access.
+Phase 2 can run offline, using the evidence bundle.
