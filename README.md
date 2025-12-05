@@ -183,7 +183,7 @@ _**Suppose Phase 1 prints:**_
 
 # Permissions Required
 
-###For Full Functionality (Recommended):
+### For Full Functionality (Recommended):
 * Terminal must be granted Full Disk Access
 * Script must be run with sudo
 
@@ -197,7 +197,7 @@ The script will warn you when:
 * Full Disk Access appears to be missing
 * It must fall back into no-sudo mode
 
-#Notes for EDR / DFIR Deployment
+# Notes for EDR / DFIR Deployment
 This toolkit can be executed via:
 * CrowdStrike RTR
 * Velociraptor
